@@ -8,7 +8,7 @@ st.title("Website Performance Analyzer")
 # Deskripsi aplikasi
 st.markdown("""
 Aplikasi ini membantu menganalisis performa website berdasarkan dataset yang disediakan.
-Anda dapat melihat semua domain dan grafik metrik performa berdasarkan data.
+Jika website yang dicari belum ada, aplikasi akan menambahkannya secara otomatis dan melakukan analisis.
 """)
 
 # URL dataset
@@ -24,6 +24,21 @@ def load_data():
         st.error(f"Error loading data: {e}")
         return None
 
+# Fungsi untuk menambahkan website baru ke dataset
+def add_new_website(data, new_domain, new_latency, new_response_time, new_availability):
+    # Membuat dictionary untuk domain baru
+    new_data = {
+        'domain': [new_domain],
+        'latency': [new_latency],
+        'response_time': [new_response_time],
+        'availability': [new_availability]
+    }
+    new_df = pd.DataFrame(new_data)
+    
+    # Menambahkan data baru ke dataset
+    updated_data = pd.concat([data, new_df], ignore_index=True)
+    return updated_data
+
 # Load dataset
 data = load_data()
 
@@ -32,44 +47,46 @@ if data is not None:
     st.subheader("Dataset Overview")
     st.dataframe(data)
 
-    # Menampilkan daftar domain
-    st.subheader("Available Domains")
-    if 'domain' in data.columns:
-        all_domains = data['domain'].unique()
-        st.write(f"Total domains: {len(all_domains)}")
-        st.write(all_domains)
+    # Input domain untuk analisis
+    st.subheader("Search or Add New Website")
+    domain_input = st.text_input("Enter the domain to search or add (e.g., example.com):", "").strip()
 
-        # Memilih domain untuk dianalisis
-        st.subheader("Domain Analysis")
-        selected_domains = st.multiselect(
-            "Select domains to analyze:",
-            all_domains,
-            default=all_domains[:5]  # Default hanya beberapa domain
-        )
-
-        if selected_domains:
-            # Filter data berdasarkan domain yang dipilih
-            filtered_data = data[data['domain'].isin(selected_domains)]
-
-            # Memilih metrik untuk visualisasi
-            st.subheader("Performance Metrics Visualization")
-            metrics = [col for col in data.columns if data[col].dtype in ['int64', 'float64']]
-            selected_metric = st.selectbox("Select a metric to visualize:", metrics)
-
-            if selected_metric:
-                # Grafik performa
-                fig, ax = plt.subplots(figsize=(10, 6))
-                filtered_data.sort_values(by=selected_metric, ascending=False).plot(
-                    kind='bar', x='domain', y=selected_metric, ax=ax, color='skyblue', legend=False
-                )
-                ax.set_title(f"{selected_metric.capitalize()} Performance", fontsize=16)
-                ax.set_ylabel(selected_metric.capitalize(), fontsize=12)
-                ax.set_xlabel("Domain", fontsize=12)
-                plt.xticks(rotation=45, ha='right')
-                st.pyplot(fig)
+    if domain_input:
+        # Cek apakah domain sudah ada
+        if 'domain' in data.columns:
+            if domain_input.lower() in data['domain'].str.lower().values:
+                st.write(f"Domain **{domain_input}** already exists in the dataset.")
+            else:
+                st.write(f"Domain **{domain_input}** not found in the dataset. Adding it now...")
+                
+                # Misalnya kita mendapatkan data performa website baru dari API atau sumber lain
+                # Di sini kita hanya memasukkan data statis sebagai contoh
+                new_latency = 100  # Contoh nilai
+                new_response_time = 150  # Contoh nilai
+                new_availability = 99.8  # Contoh nilai
+                
+                # Menambahkan domain baru ke dataset
+                updated_data = add_new_website(data, domain_input, new_latency, new_response_time, new_availability)
+                
+                # Simulasi menyimpan data ke file atau database (di sini hanya menampilkan)
+                st.write("New website added successfully!")
+                st.dataframe(updated_data)
+                
+                # Menampilkan analisis performa untuk domain yang baru ditambahkan
+                st.subheader("Performance Metrics Visualization")
+                selected_metric = st.selectbox("Select a metric to visualize:", ['latency', 'response_time', 'availability'])
+                
+                if selected_metric:
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    updated_data.sort_values(by=selected_metric, ascending=False).plot(
+                        kind='bar', x='domain', y=selected_metric, ax=ax, color='skyblue', legend=False
+                    )
+                    ax.set_title(f"{selected_metric.capitalize()} Performance", fontsize=16)
+                    ax.set_ylabel(selected_metric.capitalize(), fontsize=12)
+                    ax.set_xlabel("Domain", fontsize=12)
+                    plt.xticks(rotation=45, ha='right')
+                    st.pyplot(fig)
         else:
-            st.warning("Please select at least one domain to analyze.")
-    else:
-        st.error("The dataset does not contain a 'domain' column.")
+            st.error("The dataset does not contain a 'domain' column.")
 else:
     st.error("Failed to load the dataset. Please check the data source.")
