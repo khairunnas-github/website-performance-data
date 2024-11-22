@@ -8,7 +8,7 @@ st.title("Website Performance Analyzer")
 # Deskripsi aplikasi
 st.markdown("""
 Aplikasi ini membantu menganalisis performa website berdasarkan dataset yang disediakan.
-Masukkan nama domain untuk melihat data kinerjanya dan melakukan analisis lebih lanjut.
+Anda dapat melihat semua domain dan grafik metrik performa berdasarkan data.
 """)
 
 # URL dataset
@@ -29,36 +29,47 @@ data = load_data()
 
 if data is not None:
     # Menampilkan dataset
-    st.subheader("Dataset")
+    st.subheader("Dataset Overview")
     st.dataframe(data)
 
-    # Input untuk mencari domain
-    st.subheader("Search Website Performance by Domain")
-    domain = st.text_input("Enter domain (e.g., example.com):", "").strip()
+    # Menampilkan daftar domain
+    st.subheader("Available Domains")
+    if 'domain' in data.columns:
+        all_domains = data['domain'].unique()
+        st.write(f"Total domains: {len(all_domains)}")
+        st.write(all_domains)
 
-    if domain:
-        filtered_data = data[data['domain'].str.contains(domain, case=False, na=False)]
-        
-        if not filtered_data.empty:
-            st.write(f"Results for: **{domain}**")
-            st.dataframe(filtered_data)
+        # Memilih domain untuk dianalisis
+        st.subheader("Domain Analysis")
+        selected_domains = st.multiselect(
+            "Select domains to analyze:",
+            all_domains,
+            default=all_domains[:5]  # Default hanya beberapa domain
+        )
 
-            # Menampilkan visualisasi
-            st.subheader("Performance Metrics")
-            metric = st.selectbox(
-                "Select a metric to visualize:",
-                [col for col in filtered_data.columns if filtered_data[col].dtype in ['int64', 'float64']]
-            )
-            
-            if metric:
-                fig, ax = plt.subplots()
-                filtered_data.plot(kind='bar', x='domain', y=metric, ax=ax, legend=False, color='skyblue')
-                ax.set_title(f"{metric.capitalize()} for {domain}")
-                ax.set_ylabel(metric.capitalize())
-                ax.set_xlabel("Domain")
+        if selected_domains:
+            # Filter data berdasarkan domain yang dipilih
+            filtered_data = data[data['domain'].isin(selected_domains)]
+
+            # Memilih metrik untuk visualisasi
+            st.subheader("Performance Metrics Visualization")
+            metrics = [col for col in data.columns if data[col].dtype in ['int64', 'float64']]
+            selected_metric = st.selectbox("Select a metric to visualize:", metrics)
+
+            if selected_metric:
+                # Grafik performa
+                fig, ax = plt.subplots(figsize=(10, 6))
+                filtered_data.sort_values(by=selected_metric, ascending=False).plot(
+                    kind='bar', x='domain', y=selected_metric, ax=ax, color='skyblue', legend=False
+                )
+                ax.set_title(f"{selected_metric.capitalize()} Performance", fontsize=16)
+                ax.set_ylabel(selected_metric.capitalize(), fontsize=12)
+                ax.set_xlabel("Domain", fontsize=12)
+                plt.xticks(rotation=45, ha='right')
                 st.pyplot(fig)
         else:
-            st.warning(f"No data found for domain: {domain}")
-
+            st.warning("Please select at least one domain to analyze.")
+    else:
+        st.error("The dataset does not contain a 'domain' column.")
 else:
-    st.info("Please enter a domain to search.")
+    st.error("Failed to load the dataset. Please check the data source.")
