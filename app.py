@@ -41,8 +41,20 @@ def add_new_website(data, website_url, category, page_size, load_time, response_
     
     # Menambahkan data baru ke dataset
     updated_data = pd.concat([data, new_df], ignore_index=True)
+    
+    # Menambahkan kolom 'Sr No' sebagai nomor urut berdasarkan index
+    updated_data['Sr No'] = updated_data.index + 1
+    
+    # Menyimpan kembali ke CSV
     updated_data.to_csv(DATA_URL, index=False)  # Simpan perubahan ke file CSV
     return updated_data
+
+# Fungsi untuk mengonversi input ke angka desimal yang benar
+def convert_to_float(value):
+    try:
+        return float(value.replace(",", "."))
+    except ValueError:
+        return 0.0
 
 # Load dataset
 data = load_data()
@@ -71,11 +83,16 @@ if data is not None:
                 # Input data performa untuk website yang baru
                 category_input = st.text_input("Enter the website category:", "General")
                 page_size_input = st.number_input("Enter the page size (KB):", min_value=0)
-                load_time_input = st.number_input("Enter the load time (seconds):", min_value=0.0)
-                response_time_input = st.number_input("Enter the response time (seconds):", min_value=0.0)
-                throughput_input = st.number_input("Enter the throughput:", min_value=0.0)
+                load_time_input = st.text_input("Enter the load time (seconds):", "0.00")
+                response_time_input = st.text_input("Enter the response time (seconds):", "0.00")
+                throughput_input = st.text_input("Enter the throughput:", "0.00")
                 performance_label_input = st.selectbox("Select the performance label:", ['Good', 'Average', 'Poor'])
                 user_response_input = st.number_input("Enter user response (0 to 100):", min_value=0, max_value=100, value=75)
+
+                # Mengonversi input waktu dan throughput ke format yang benar
+                load_time_input = convert_to_float(load_time_input)
+                response_time_input = convert_to_float(response_time_input)
+                throughput_input = convert_to_float(throughput_input)
 
                 # Menambahkan website baru dengan nilai performa yang diberikan
                 updated_data = add_new_website(
@@ -102,6 +119,26 @@ if data is not None:
                     ax.set_xlabel("Website URL", fontsize=12)
                     plt.xticks(rotation=45, ha='right')
                     st.pyplot(fig)
+
+                # Fitur perbandingan berdasarkan kategori
+                st.subheader("Category-wise Performance Comparison")
+                selected_category = st.selectbox("Select category to compare:", updated_data['Category'].unique())
+                
+                category_data = updated_data[updated_data['Category'] == selected_category]
+                
+                if not category_data.empty:
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    category_data.plot(
+                        kind='bar', x='website_url', y=['Load Time(s)', 'Response Time(s)', 'Throughput'], ax=ax, 
+                        color=['lightblue', 'lightgreen', 'lightcoral'], legend=True
+                    )
+                    ax.set_title(f"Performance Comparison for {selected_category} Websites", fontsize=16)
+                    ax.set_ylabel("Performance Metrics", fontsize=12)
+                    ax.set_xlabel("Website URL", fontsize=12)
+                    plt.xticks(rotation=45, ha='right')
+                    st.pyplot(fig)
+                else:
+                    st.write("No websites found for this category.")
         else:
             st.error("The dataset does not contain a 'website_url' column.")
 else:
